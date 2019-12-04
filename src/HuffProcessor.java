@@ -1,3 +1,4 @@
+import java.util.Arrays;
 import java.util.PriorityQueue;
 
 /**
@@ -48,6 +49,7 @@ public class HuffProcessor {
 		ret[PSEUDO_EOF] = 1;
 		while (true){
 			int val = in.readBits(BITS_PER_WORD);
+			//System.out.println("" + (char)val);
 			if (val == -1) break;
 			ret[val] += 1;
 		}
@@ -59,6 +61,7 @@ public class HuffProcessor {
 
 		for (int i = 0; i < counts.length; i++) {
 			if (counts[i] > 0) {
+				//System.out.println("Adding " + (char)i);
 				pq.add(new HuffNode(i, counts[i], null, null));
 			}
 		}
@@ -68,6 +71,7 @@ public class HuffProcessor {
 			HuffNode right = pq.remove();
 			HuffNode t = new HuffNode(0, left.myWeight + right.myWeight, left, right);
 			pq.add(t);
+			//System.out.println(pq);
 		}
 
 		return pq.remove();
@@ -76,6 +80,8 @@ public class HuffProcessor {
 	public void codingHelper(HuffNode root, String path, String[] encodings){
 		if (root.myLeft == null && root.myRight == null) {
 			encodings[root.myValue] = path;
+			//System.out.println("" + root + " " + path);
+
 			return;
 		}
 		codingHelper(root.myLeft, path + "0", encodings);
@@ -93,24 +99,30 @@ public class HuffProcessor {
 			return;
 		}
 		if (root.myLeft == null && root.myRight == null) {
+			//System.out.println(root);
 			out.writeBits(1, 1);
 			out.writeBits(BITS_PER_WORD + 1, root.myValue);
 		}
-
 		out.writeBits(1, 0);
 		writeHeader(root.myLeft, out);
 		writeHeader(root.myRight, out);
 	}
 
 	public void writeCompressedBits(String[] codings, BitInputStream in, BitOutputStream out){
+		//System.out.println("Codings array: ");
+		//System.out.println(Arrays.toString(codings));
 		while (true) {
 			int chunk = in.readBits(BITS_PER_WORD);
+			//System.out.println((char)chunk);
 			if (chunk == -1) {
 				String code = codings[PSEUDO_EOF];
+				//System.out.println("Writing PSEUDO_EOF" + code);
+
 				out.writeBits(code.length(), Integer.parseInt(code, 2));
 				break;
 			}
 			String code = codings[chunk];
+			//System.out.println("Writing " + code);
 			out.writeBits(code.length(), Integer.parseInt(code, 2));
 
 		}
@@ -122,8 +134,6 @@ public class HuffProcessor {
 		int[] counts = readForCounts(in);
 		HuffNode root = makeTreeFromCounts(counts);
 		String[] codings = makeCodingsFromTree(root);
-
-		out.writeBits(BITS_PER_INT, HUFF_TREE);
 		writeHeader(root, out);
 
 		in.reset();
