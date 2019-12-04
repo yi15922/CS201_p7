@@ -44,27 +44,28 @@ public class HuffProcessor {
 	 */
 
 
-	public int[] readForCounts(BitInputStream in){
+	private int[] readForCounts(BitInputStream in){
 		int[] ret = new int[ALPH_SIZE + 1];
 		ret[PSEUDO_EOF] = 1;
 		while (true){
 			int val = in.readBits(BITS_PER_WORD);
-			//System.out.println("" + (char)val);
+			//System.out.println(" " + (char)val);
 			if (val == -1) break;
 			ret[val] += 1;
 		}
 		return ret;
 	}
 
-	public HuffNode makeTreeFromCounts(int[] counts){
+	private HuffNode makeTreeFromCounts(int[] counts){
 		PriorityQueue<HuffNode> pq = new PriorityQueue<>();
 
 		for (int i = 0; i < counts.length; i++) {
 			if (counts[i] > 0) {
-				//System.out.println("Adding " + (char)i);
+				//System.out.println(i + " " + counts[i]);
 				pq.add(new HuffNode(i, counts[i], null, null));
 			}
 		}
+		//System.out.println("pq created with size " + pq.size());
 
 		while (pq.size() > 1) {
 			HuffNode left = pq.remove();
@@ -74,41 +75,45 @@ public class HuffProcessor {
 			//System.out.println(pq);
 		}
 
-		return pq.remove();
+		HuffNode root = pq.remove();
+		return root;
 	}
 
-	public void codingHelper(HuffNode root, String path, String[] encodings){
+	private void codingHelper(HuffNode root, String path, String[] encodings){
 		if (root.myLeft == null && root.myRight == null) {
 			encodings[root.myValue] = path;
-			//System.out.println("" + root + " " + path);
-
+			//System.out.println(root.myValue + " " + path);
 			return;
 		}
 		codingHelper(root.myLeft, path + "0", encodings);
 		codingHelper(root.myRight, path + "1", encodings);
 	}
 
-	public String[] makeCodingsFromTree(HuffNode root){
+	private String[] makeCodingsFromTree(HuffNode root){
 		String[] encodings = new String[ALPH_SIZE + 1];
 		codingHelper(root, "", encodings);
 		return encodings;
 	}
 
-	public void writeHeader(HuffNode root, BitOutputStream out){
+	private void writeHeader(HuffNode root, BitOutputStream out){
 		if (root == null) {
 			return;
 		}
 		if (root.myLeft == null && root.myRight == null) {
-			//System.out.println(root);
+			//System.out.print("1");
 			out.writeBits(1, 1);
 			out.writeBits(BITS_PER_WORD + 1, root.myValue);
+			//System.out.print(root);
+			return;
 		}
+
 		out.writeBits(1, 0);
+		//System.out.print("0");
 		writeHeader(root.myLeft, out);
 		writeHeader(root.myRight, out);
 	}
 
-	public void writeCompressedBits(String[] codings, BitInputStream in, BitOutputStream out){
+	private void writeCompressedBits(String[] codings, BitInputStream in, BitOutputStream out){
 		//System.out.println("Codings array: ");
 		//System.out.println(Arrays.toString(codings));
 		while (true) {
@@ -134,6 +139,7 @@ public class HuffProcessor {
 		int[] counts = readForCounts(in);
 		HuffNode root = makeTreeFromCounts(counts);
 		String[] codings = makeCodingsFromTree(root);
+		out.writeBits(BITS_PER_INT, HUFF_TREE);
 		writeHeader(root, out);
 
 		in.reset();
@@ -151,7 +157,7 @@ public class HuffProcessor {
 	 *            Buffered bit stream writing to the output file.
 	 */
 
-	public HuffNode readTree(BitInputStream in){
+	private HuffNode readTree(BitInputStream in){
 		int bit = in.readBits(1);
 		if (bit == -1) {
 			throw new HuffException("bad input");
